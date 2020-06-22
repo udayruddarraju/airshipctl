@@ -20,6 +20,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v0.0.6
 	github.com/stretchr/testify v1.4.0
+	google.golang.org/api v0.14.0
 	k8s.io/api v0.17.4
 	k8s.io/apiextensions-apiserver v0.17.4
 	k8s.io/apimachinery v0.17.4
