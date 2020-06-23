@@ -18,7 +18,9 @@ package cluster
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"os"
+	"sigs.k8s.io/cluster-api/api/v1alpha3"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -76,10 +78,26 @@ func renewCerts(rootSettings *environment.AirshipCTLSettings, factory client.Fac
 	if renewInPlace {
 		return renewCertsInPlace(rootSettings, factory, expirationThreshold)
 	}
-	return nil
+	return renewCertsRollingUpdate(rootSettings, factory, expirationThreshold)
 }
 
 func renewCertsRollingUpdate(rootSettings *environment.AirshipCTLSettings, factory client.Factory, expirationThreshold string) error {
+	f, err := factory(rootSettings)
+	if err != nil {
+		return err
+	}
+	gvr := schema.GroupVersionResource{
+		Group: v1alpha3.GroupVersion.Group,
+		Version: v1alpha3.GroupVersion.Version,
+		Resource: "machines",
+	}
+	machineList, err := f.DynamicClient().Resource(gvr).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, machine := range machineList.Items {
+		fmt.Println(machine.GetName())
+	}
 	// todo: create a new client to the cluster api management control plane
 
 	// todo: find the provider, and retrieve the appropriate machine template for the control plane
@@ -98,7 +116,6 @@ func renewCertsRollingUpdate(rootSettings *environment.AirshipCTLSettings, facto
 	// so users with clusterctl can still be able to just fire rolling update from airshipctl and later use clusterctl
 	// to verify the status of the rolling update. This might help us to prevent a lot of duplicate logic in airshipctl
 	// that
-
 
 	return nil
 }
