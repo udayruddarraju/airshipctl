@@ -1,0 +1,13 @@
+
+Successfully triggered rolling update to renew certificates for control plane node using clusterapi.
+
+Run the following commands to monitor the rolling update.
+
+Monitor machine provisioning:
+  kubectl get machines -w
+
+Monitor control plane status:
+  kubectl get kcp -w
+
+Monitor the health of kubernetes control plane nodes
+  kubectl get nodes -w
