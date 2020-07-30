@@ -14,9 +14,15 @@
 
 package checkexpiration
 
+// #include "shim.h"
+//import "C"
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -30,9 +36,15 @@ type secretList []struct {
 	secretNs   string
 }
 
+type Certificate struct {
+	Issuer *Certificate
+	ref    interface{}
+}
+
 // NewEncryptCommand creates a new command for generating secret information
 func NewCheckCommand(rootSettings *environment.AirshipCTLSettings, factory client.Factory) *cobra.Command {
 
+	var duration string
 	checkCmd := &cobra.Command{
 		Use:   "checkexpiration",
 		Short: "Check expiration of TLS Secrets",
@@ -40,7 +52,7 @@ func NewCheckCommand(rootSettings *environment.AirshipCTLSettings, factory clien
 
 			fmt.Println("Running Check-expiration of all TLS secrets")
 
-			_, err := checkexpiry(rootSettings, factory)
+			_, err := checkexpiry(rootSettings, factory, duration)
 			if err != nil {
 				return fmt.Errorf("failed to check expiry: %s", err.Error())
 			}
@@ -49,30 +61,103 @@ func NewCheckCommand(rootSettings *environment.AirshipCTLSettings, factory clien
 
 		},
 	}
+
+	checkCmd.Flags().StringVar(&duration, "duration", "30",
+		"Duration in days. Defaults to 30")
 	return checkCmd
 }
 
-func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Factory) ([]secretList, error) {
+func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Factory, duration string) ([]secretList, error) {
+
+	d, err := strconv.Atoi(duration)
+
+	if err != nil {
+		return nil, err
+	}
+
 	kclient, err := factory(rootSettings)
 	if err != nil {
 		return nil, err
 	}
 
-//	airconfig := rootSettings.Config
-//	_, err := airconfig.GetCurrentContext()
-//	if err != nil {
-//		return nil, err
-//	}
+	//	airconfig := rootSettings.Config
+	//	_, err := airconfig.GetCurrentContext()
+	//	if err != nil {
+	//		return nil, err
+	//	}
 
-  secretType := "kubernetes.io/tls"
+	secretType := "kubernetes.io/tls"
 	secrets, err := kclient.ClientSet().CoreV1().Secrets("").List(metav1.ListOptions{FieldSelector: fmt.Sprintf("type=%s", secretType)})
 
 	for _, secret := range secrets.Items {
 
-		fmt.Println(secret.Name,  secret.Namespace)
-				fmt.Println(string(secret.Data["tls.crt"]))
+		fmt.Println("Checking ", secret.Name, "in ", secret.Namespace)
+
+		//		fmt.Println(string(secret.Data["tls.crt"]))
+
+		expiry, err := checkNotAfter([]byte(secret.Data["tls.crt"]), d)
+		if err != nil {
+			return nil, err
+		}
+
+		if expiry {
+			fmt.Fprint(os.Stdout, "tls.crt in "+secret.Name+"\n")
+		}
+
+		if secret.Data["ca.crt"] != nil {
+
+			expiry, err = checkNotAfter([]byte(secret.Data["ca.crt"]), d)
+			if err != nil {
+				return nil, err
+			}
+
+			if expiry {
+				fmt.Fprint(os.Stdout, "ca.crt in "+secret.Name+"\n")
+			}
+
+		}
+		// TODO: Check for key file
+
 	}
 
 	return nil, nil
+}
+
+func checkNotAfter(certData []byte, d int) (bool, error) {
+
+	block, _ := pem.Decode(certData)
+
+	if block == nil {
+
+		return false, fmt.Errorf("failed to parse certificate PEM")
+
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+
+	if err != nil {
+
+		return false, fmt.Errorf("failed to parse certificate: " + err.Error())
+
+	}
+
+	//	fmt.Println(cert.NotAfter.Date())
+	//	fmt.Println(time.Now().Date())
+
+	return checkIfExpired(cert.NotAfter, d), nil
+
+}
+
+func checkIfExpired(notAfter time.Time, duration int) bool {
+
+	diffTime := notAfter.Sub(time.Now())
+
+	if int(diffTime.Hours()/24) < int(duration) {
+		return true
+	} else if int(diffTime.Hours()/24) < 0 {
+		return true
+	}
+
+	return false
 }
 

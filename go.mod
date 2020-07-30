@@ -20,6 +20,7 @@ require (
 	github.com/monopole/sopsencodedsecrets v0.0.0-20190703185602-44c03958d11f // indirect
 	github.com/onsi/gomega v1.9.0
 	github.com/pkg/errors v0.9.1
+	github.com/spacemonkeygo/openssl v0.0.0-20181017203307-c2dcc5cca94a
 	github.com/spf13/cobra v0.0.6
 	github.com/stretchr/testify v1.4.0
 	go.mozilla.org/sops v0.0.0-20190912205235-14a22d7a7060 // indirect
