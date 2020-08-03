@@ -22,11 +22,13 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	clientcmd "k8s.io/client-go/tools/clientcmd"
 	"opendev.org/airship/airshipctl/pkg/environment"
 	"opendev.org/airship/airshipctl/pkg/k8s/client"
 )
@@ -86,6 +88,7 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 	//		return nil, err
 	//	}
 
+	// Checking the EXPIRY of TLS Secrets
 	secretType := "kubernetes.io/tls"
 	secrets, err := kclient.ClientSet().CoreV1().Secrets("").List(metav1.ListOptions{FieldSelector: fmt.Sprintf("type=%s", secretType)})
 
@@ -116,7 +119,64 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 			}
 
 		}
-		// TODO: Check for key file
+
+	}
+
+	kSecrets, err := kclient.ClientSet().CoreV1().Secrets("").List(metav1.ListOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, kSecret := range kSecrets.Items {
+
+		if strings.HasSuffix(kSecret.Name, "-kubeconfig") {
+
+			//			fmt.Println("found ", kSecret.Name)
+
+			for ownerref := range kSecret.OwnerReferences {
+				//				fmt.Println("kind " + kSecret.OwnerReferences[ownerref].Kind)
+
+				if kSecret.OwnerReferences[ownerref].Kind == "KubeadmControlPlane" {
+					fmt.Println("Checking ", kSecret.Name, " in ", kSecret.Namespace)
+					kubecontent, err := clientcmd.Load(kSecret.Data["value"])
+					if err != nil {
+						return nil, err
+					}
+					//					fmt.Println(kubecontent.Clusters)
+
+					// Iterate through each Cluster and identify expiry
+					for clusterName, clusterData := range kubecontent.Clusters {
+						//		fmt.Println(clusterName, string(clusterData.CertificateAuthorityData))
+						expiry, err := checkNotAfter(clusterData.CertificateAuthorityData, d)
+
+						if err != nil {
+							return nil, err
+						}
+
+						if expiry {
+							fmt.Fprint(os.Stdout, "CertificateAuthorityData for "+clusterName+" cluster in "+kSecret.Name+"\n")
+						}
+					}
+
+					// Iterate through each user Certificate and identify expiry
+					for userName, userData := range kubecontent.AuthInfos {
+						//		fmt.Println(userName, string(userData.ClientCertificateData))
+
+						expiry, err := checkNotAfter(userData.ClientCertificateData, d)
+
+						if err != nil {
+							return nil, err
+						}
+
+						if expiry {
+							fmt.Fprint(os.Stdout, "ClientCertificateData for "+userName+" user in  "+kSecret.Name+"\n")
+						}
+					}
+				}
+			}
+
+		}
 
 	}
 
