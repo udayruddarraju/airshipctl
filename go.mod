@@ -16,6 +16,7 @@ require (
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190212212710-3befbb6ad0cc // indirect
 	github.com/huandu/xstrings v1.3.1 // indirect
+	github.com/mdempsky/maligned v0.0.0-20180708014732-6e39bd26a8c8 // indirect
 	github.com/metal3-io/baremetal-operator v0.0.0-20200501205115-2c0dc9997bfa
 	github.com/monopole/sopsencodedsecrets v0.0.0-20190703185602-44c03958d11f // indirect
 	github.com/onsi/gomega v1.9.0
