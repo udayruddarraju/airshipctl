@@ -188,7 +188,11 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 	hcList, err := kclient.DynamicClient().Resource(gvr).List(metav1.ListOptions{})
 
 	if err != nil {
-		return nil, err
+		if err.Error() == "the server could not find the requested resource" {
+			return nil, nil
+		} else {
+			return nil, err
+		}
 	}
 
 	for _, hc := range hcList.Items {

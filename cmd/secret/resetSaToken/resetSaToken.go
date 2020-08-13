@@ -64,16 +64,20 @@ func rotateToken(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 
 		secrets, err := kclient.ClientSet().CoreV1().Secrets(ns).List(metav1.ListOptions{FieldSelector: fmt.Sprintf("type=%s", secretType)})
 
+		if len(secrets.Items) < 1 {
+			return fmt.Errorf("No SA tokens found/Invalid namespace")
+		}
+
 		for _, secret := range secrets.Items {
 			fmt.Fprint(os.Stdout, "Rotating token - "+secret.Name+"\n")
-			err1 := deleteSecret(kclient, secret.Name, ns)
+			err = deleteSecret(kclient, secret.Name, ns)
 			if err != nil {
-				return err1
+				return err
 			}
 
-			err2 := deletePod(kclient, secret.Name, ns)
+			err = deletePod(kclient, secret.Name, ns)
 			if err != nil {
-				return err2
+				return err
 			}
 
 		}
@@ -97,7 +101,6 @@ func rotateToken(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 			}
 		} else {
 			return fmt.Errorf(secretName + " is not a Service Account Token")
-
 		}
 	}
 	return nil
@@ -136,4 +139,3 @@ func deletePod(kclient client.Interface, secretName string, ns string) error {
 	}
 	return nil
 }
-
