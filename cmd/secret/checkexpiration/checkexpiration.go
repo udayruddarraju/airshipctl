@@ -21,13 +21,17 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientcmd "k8s.io/client-go/tools/clientcmd"
 	"opendev.org/airship/airshipctl/pkg/environment"
 	"opendev.org/airship/airshipctl/pkg/k8s/client"
@@ -82,11 +86,11 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 		return nil, err
 	}
 
-	//	airconfig := rootSettings.Config
-	//	_, err := airconfig.GetCurrentContext()
-	//	if err != nil {
-	//		return nil, err
-	//	}
+	//      airconfig := rootSettings.Config
+	//      _, err := airconfig.GetCurrentContext()
+	//      if err != nil {
+	//              return nil, err
+	//      }
 
 	// Checking the EXPIRY of TLS Secrets
 	secretType := "kubernetes.io/tls"
@@ -96,7 +100,7 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 
 		fmt.Println("Checking ", secret.Name, "in ", secret.Namespace)
 
-		//		fmt.Println(string(secret.Data["tls.crt"]))
+		//              fmt.Println(string(secret.Data["tls.crt"]))
 
 		expiry, err := checkNotAfter([]byte(secret.Data["tls.crt"]), d)
 		if err != nil {
@@ -132,10 +136,10 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 
 		if strings.HasSuffix(kSecret.Name, "-kubeconfig") {
 
-			//			fmt.Println("found ", kSecret.Name)
+			//                      fmt.Println("found ", kSecret.Name)
 
 			for ownerref := range kSecret.OwnerReferences {
-				//				fmt.Println("kind " + kSecret.OwnerReferences[ownerref].Kind)
+				//                              fmt.Println("kind " + kSecret.OwnerReferences[ownerref].Kind)
 
 				if kSecret.OwnerReferences[ownerref].Kind == "KubeadmControlPlane" {
 					fmt.Println("Checking ", kSecret.Name, " in ", kSecret.Namespace)
@@ -143,11 +147,11 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 					if err != nil {
 						return nil, err
 					}
-					//					fmt.Println(kubecontent.Clusters)
+					//                                      fmt.Println(kubecontent.Clusters)
 
 					// Iterate through each Cluster and identify expiry
 					for clusterName, clusterData := range kubecontent.Clusters {
-						//		fmt.Println(clusterName, string(clusterData.CertificateAuthorityData))
+						//              fmt.Println(clusterName, string(clusterData.CertificateAuthorityData))
 						expiry, err := checkNotAfter(clusterData.CertificateAuthorityData, d)
 
 						if err != nil {
@@ -161,7 +165,7 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 
 					// Iterate through each user Certificate and identify expiry
 					for userName, userData := range kubecontent.AuthInfos {
-						//		fmt.Println(userName, string(userData.ClientCertificateData))
+						//              fmt.Println(userName, string(userData.ClientCertificateData))
 
 						expiry, err := checkNotAfter(userData.ClientCertificateData, d)
 
@@ -180,7 +184,188 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 
 	}
 
+	// TODO Checking the expiry of Workload nodes certificates
+
+	gvr := schema.GroupVersionResource{
+		Group:    "hostconfig.airshipit.org",
+		Version:  "v1alpha1",
+		Resource: "hostconfigs",
+	}
+
+	hcList, err := kclient.DynamicClient().Resource(gvr).List(metav1.ListOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, hc := range hcList.Items {
+		//		fmt.Println("Produced by List call - ", hc.GetName())
+
+		//              fld, exists, err := unstructured.NestedString(hc.Object, "status", "hostConfigStatus", "dtc-dtc-control-plane-vpsd5", "Checking certs", "stdout")
+
+		fld, exists, err := unstructured.NestedMap(hc.Object, "status", "hostConfigStatus")
+
+		if err != nil {
+			return nil, err
+
+		}
+		if !exists {
+			fmt.Println("Doesnot exist")
+		}
+
+		//              fmt.Println(fld)
+
+		fmt.Println("Checking the Expiry on the Workload Nodes")
+		//   fmt.Println(fld["dtc-dtc-control-plane-vpsd5"])
+
+		w := tabwriter.NewWriter(os.Stdout, 2, 6, 3, ' ', 0)
+		fmt.Fprintln(w, "===========\t========")
+		fmt.Fprintln(w, "CERTIFICATE\tHOSTNAME")
+		fmt.Fprintln(w, "===========\t========")
+
+		flag := false
+
+		for hostName, value := range fld {
+
+			//			fmt.Println(hostName)
+			//			fmt.Println(fld[hostName]) // This line works
+
+			//			fmt.Println(value)
+			for k, v := range value.(map[string]interface{}) {
+				//				fmt.Println("Key", k)
+				//				fmt.Println("value", v)
+				//				fmt.Println("========")
+
+				if k == "Execute kubeadm command cert expirataion" {
+					if v.(map[string]interface{})["status"] == "Successful" {
+						//					fmt.Println(v.(map[string]interface{})["results"])
+						for _, list := range v.(map[string]interface{})["results"].([]interface{}) {
+							//							fmt.Println("This is V1")
+
+							//								fmt.Println("This is i1")
+							//								fmt.Println(i)
+							//								fmt.Println("This is kk")
+							//								fmt.Println(kk)
+							if list.(map[string]interface{})["status"] == "Successful" {
+								//								fmt.Println(list.(map[string]interface{})["stdout"])
+								//								fmt.Println(flag)
+
+								data := fmt.Sprintf("%v", list.(map[string]interface{})["stdout"])
+
+								line := strings.Split(data, "\n")
+
+								for i := range line {
+									//									fmt.Println(line[i])
+
+									//									fmt.Println("====end====")
+
+									if strings.Contains(line[i], "UTC") {
+										certLine := strings.Fields(line[i])[6]
+
+										//										fmt.Println(certLine)
+
+										var durationStamp int
+										if strings.ContainsAny(certLine, "dhms") {
+											if !strings.Contains(certLine, "d") {
+												durationStamp = 0
+											} else {
+												chk := regexp.MustCompile(`[d,h,m,s]`)
+
+												durationStamp, err = strconv.Atoi(chk.Split(certLine, -1)[0])
+
+												if err != nil {
+													return nil, err
+												}
+											}
+										}
+
+										//										fmt.Println(durationStamp)
+
+										if durationStamp < 0 || durationStamp < int(d) {
+											//											fmt.Println("Expired", strings.Fields(line[i])[0], hostName)
+
+											s := fmt.Sprintf("%s\t%s", strings.Fields(line[i])[0], hostName)
+											fmt.Fprintln(w, s)
+
+											flag = true
+
+										}
+									}
+								}
+
+								if flag {
+									w.Flush()
+								}
+
+								//							fmt.Println("Printing cert")
+								//								fmt.Println(list.(map[string]interface{})["path"], " -", list.(map[string]interface{})["expiryDate"])
+
+								//									fmt.Println(list.(map[string]interface{})["item"])
+
+								// yourDate, err := time.Parse("2006-01-02", fmt.Sprintf("%v", list.(map[string]interface{})["stdout"]))
+								// if err != nil {
+								// 	return nil, err
+								//
+								// }
+								//								fmt.Println(yourDate)
+
+								// output := checkIfExpired(yourDate, d)
+								//
+								// if output {
+								// 	s := fmt.Sprintf("%s\t%s", list.(map[string]interface{})["path"], hostName)
+								// 	fmt.Fprintln(w, s)
+								// 	flag = true
+								// 	//									fmt.Println("Expired")
+								// }
+								// if flag {
+								// 	w.Flush()
+								// }
+							}
+						}
+					}
+
+				}
+			}
+		}
+	}
+
+	// Below block works
+	// _, err = json.Marshal(fld)
+	//
+	// if err != nil {
+	// 	return nil, err
+	//
+	// }
+
+	//              fmt.Println(string(statusData))
+
+	// for hosts := range statusData {
+	//      fmt.Println("Hosts")
+	//      //              fmt.Println(statusData[hosts])
+	// }
+
+	//              fld = "2021-07-30"
+
+	// if strings.HasPrefix(fld, "notAfter=") {
+	//      split := strings.Split(fld, "=")
+	//      fmt.Println(split[0])
+	//      fmt.Println(split[1])
+	//
+	//      yourDate, err := time.Parse("Jul 30 03:20:40 2021 GMT", split[1])
+	//      if err != nil {
+	//              return nil, err
+	//      }
+	//      fmt.Println(yourDate)
+
+	//      }
+	//      unstructured.UnstructuredList()
+
+	//      unstructuredObj := hc.
+
+	//              unstructuredSpec := unstructuredObj.UnstructuredContent()
+
 	return nil, nil
+
 }
 
 func checkNotAfter(certData []byte, d int) (bool, error) {
@@ -201,8 +386,8 @@ func checkNotAfter(certData []byte, d int) (bool, error) {
 
 	}
 
-	//	fmt.Println(cert.NotAfter.Date())
-	//	fmt.Println(time.Now().Date())
+	//      fmt.Println(cert.NotAfter.Date())
+	//      fmt.Println(time.Now().Date())
 
 	return checkIfExpired(cert.NotAfter, d), nil
 
@@ -219,5 +404,11 @@ func checkIfExpired(notAfter time.Time, duration int) bool {
 	}
 
 	return false
+}
+
+func expiryTemplate() {
+	const expiry = `
+
+	`
 }
 
