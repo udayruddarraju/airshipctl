@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -46,6 +47,8 @@ type Certificate struct {
 	Issuer *Certificate
 	ref    interface{}
 }
+
+var doOnce sync.Once
 
 // NewEncryptCommand creates a new command for generating secret information
 func NewCheckCommand(rootSettings *environment.AirshipCTLSettings, factory client.Factory) *cobra.Command {
@@ -92,34 +95,54 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 	//              return nil, err
 	//      }
 
+	flagY := false
+	y := tabwriter.NewWriter(os.Stdout, 50, 8, 1, ' ', 0)
+	fmt.Fprintln(y, "")
+	fmt.Fprintln(y, "===========\t==========\t===========")
+	fmt.Fprintln(y, "CERTIFICATE\tSECRET NAME\tEXPIRY DATE")
+	fmt.Fprintln(y, "===========\t==========\t===========")
+
 	// Checking the EXPIRY of TLS Secrets
 	secretType := "kubernetes.io/tls"
 	secrets, err := kclient.ClientSet().CoreV1().Secrets("").List(metav1.ListOptions{FieldSelector: fmt.Sprintf("type=%s", secretType)})
 
 	for _, secret := range secrets.Items {
 
-		fmt.Println("Checking ", secret.Name, "in ", secret.Namespace)
+		//		fmt.Println("Checking ", secret.Name, "in ", secret.Namespace)
 
-		expiry, err := checkNotAfter([]byte(secret.Data["tls.crt"]), d)
+		expiry, notAfter, err := checkNotAfter([]byte(secret.Data["tls.crt"]), d)
 		if err != nil {
 			return nil, err
 		}
 
 		if expiry {
-			fmt.Fprint(os.Stdout, "tls.crt in "+secret.Name+"\n")
+
+			sY := fmt.Sprintf("%s\t%s\t[%s]", "tls.crt", secret.Name, notAfter)
+			fmt.Fprintln(y, sY)
+
+			flagY = true
+			//			fmt.Fprint(os.Stdout, "tls.crt in "+secret.Name+" expires on "+notAfter+"\n")
 		}
 
 		if secret.Data["ca.crt"] != nil {
 
-			expiry, err = checkNotAfter([]byte(secret.Data["ca.crt"]), d)
+			expiry, notAfter, err = checkNotAfter([]byte(secret.Data["ca.crt"]), d)
 			if err != nil {
 				return nil, err
 			}
 
 			if expiry {
-				fmt.Fprint(os.Stdout, "ca.crt in "+secret.Name+"\n")
+				sY := fmt.Sprintf("%s\t%s\t[%s]", "ca.crt", secret.Name, notAfter)
+				fmt.Fprintln(y, sY)
+
+				flagY = true
+				//				fmt.Fprint(os.Stdout, "ca.crt in "+secret.Name+" expires on "+notAfter+"\n")
 			}
 
+		}
+
+		if flagY {
+			y.Flush()
 		}
 
 	}
@@ -136,7 +159,7 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 
 			for ownerref := range kSecret.OwnerReferences {
 				if kSecret.OwnerReferences[ownerref].Kind == "KubeadmControlPlane" {
-					fmt.Println("Checking ", kSecret.Name, " in ", kSecret.Namespace)
+					//					fmt.Println("Checking ", kSecret.Name, " in ", kSecret.Namespace)
 					kubecontent, err := clientcmd.Load(kSecret.Data["value"])
 					if err != nil {
 						return nil, err
@@ -144,28 +167,34 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 
 					// Iterate through each Cluster and identify expiry
 					for clusterName, clusterData := range kubecontent.Clusters {
-						expiry, err := checkNotAfter(clusterData.CertificateAuthorityData, d)
+						expiry, notAfter, err := checkNotAfter(clusterData.CertificateAuthorityData, d)
 
 						if err != nil {
 							return nil, err
 						}
 
 						if expiry {
-							fmt.Fprint(os.Stdout, "CertificateAuthorityData for "+clusterName+" cluster in "+kSecret.Name+"\n")
+
+							kHeader()
+
+							fmt.Fprint(os.Stdout, "CertificateAuthorityData for "+clusterName+" cluster in "+kSecret.Name+" expires on ["+notAfter+"]\n")
+
+							//							fmt.Fprint(os.Stdout, "CertificateAuthorityData for "+clusterName+" cluster in "+kSecret.Name+" expires on "+notAfter+"\n")
 						}
 					}
 
 					// Iterate through each user Certificate and identify expiry
 					for userName, userData := range kubecontent.AuthInfos {
 
-						expiry, err := checkNotAfter(userData.ClientCertificateData, d)
+						expiry, notAfter, err := checkNotAfter(userData.ClientCertificateData, d)
 
 						if err != nil {
 							return nil, err
 						}
 
 						if expiry {
-							fmt.Fprint(os.Stdout, "ClientCertificateData for "+userName+" user in  "+kSecret.Name+"\n")
+							kHeader()
+							fmt.Fprint(os.Stdout, "ClientCertificateData for "+userName+" user in  "+kSecret.Name+" expires on ["+notAfter+"]\n")
 						}
 					}
 				}
@@ -207,12 +236,13 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 			fmt.Println("Doesnot exist")
 		}
 
-		fmt.Println("Checking the Expiry on the Workload Nodes")
+		fmt.Print("Checking the Expiry on the Workload Nodes")
 
 		w := tabwriter.NewWriter(os.Stdout, 2, 6, 3, ' ', 0)
-		fmt.Fprintln(w, "===========\t========")
-		fmt.Fprintln(w, "CERTIFICATE\tHOSTNAME")
-		fmt.Fprintln(w, "===========\t========")
+		fmt.Fprintln(w, "")
+		fmt.Fprintln(w, "===========\t========\t===========")
+		fmt.Fprintln(w, "CERTIFICATE\tHOSTNAME\tEXPIRY DATE")
+		fmt.Fprintln(w, "===========\t========\t===========")
 
 		flag := false
 
@@ -270,7 +300,7 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 										}
 
 										if durationStamp < 0 || durationStamp < int(d) {
-											s := fmt.Sprintf("%s\t%s", strings.Fields(line[i])[0], hostName)
+											s := fmt.Sprintf("%s\t%s\t%s", strings.Fields(line[i])[0], hostName, strings.Fields(line[i])[1:6])
 											fmt.Fprintln(w, s)
 
 											flag = true
@@ -295,13 +325,13 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 }
 
 // checkNotAfter fetches the notAfter data from the PEM block
-func checkNotAfter(certData []byte, d int) (bool, error) {
+func checkNotAfter(certData []byte, d int) (bool, string, error) {
 
 	block, _ := pem.Decode(certData)
 
 	if block == nil {
 
-		return false, fmt.Errorf("failed to parse certificate PEM")
+		return false, "", fmt.Errorf("failed to parse certificate PEM")
 
 	}
 
@@ -309,14 +339,14 @@ func checkNotAfter(certData []byte, d int) (bool, error) {
 
 	if err != nil {
 
-		return false, fmt.Errorf("failed to parse certificate: " + err.Error())
+		return false, "", fmt.Errorf("failed to parse certificate: " + err.Error())
 
 	}
 
 	//      fmt.Println(cert.NotAfter.Date())
 	//      fmt.Println(time.Now().Date())
 
-	return checkIfExpired(cert.NotAfter, d), nil
+	return checkIfExpired(cert.NotAfter, d), fmt.Sprintf("%v", cert.NotAfter), nil
 
 }
 
@@ -332,4 +362,15 @@ func checkIfExpired(notAfter time.Time, duration int) bool {
 	}
 
 	return false
+}
+
+func kHeader() {
+	doOnce.Do(func() {
+
+		fmt.Println("")
+		fmt.Println("##########################################")
+		fmt.Println("  KUBECONFIG expiry of Workload Clusters  ")
+		fmt.Println("##########################################")
+
+	})
 }

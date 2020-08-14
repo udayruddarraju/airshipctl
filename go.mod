@@ -3,7 +3,9 @@ module opendev.org/airship/airshipctl
 go 1.13
 
 require (
+	4d63.com/gochecknoglobals v0.0.0-20190306162314-7c3491d2b6ec // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible
+	github.com/alexkohler/nakedret v1.0.0 // indirect
 	github.com/alokmenghrajani/gpgeez v0.0.0-20161206084504-1a06f1c582f9
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/docker/docker v1.4.2-0.20200203170920-46ec8731fbce
@@ -24,6 +26,8 @@ require (
 	github.com/spacemonkeygo/openssl v0.0.0-20181017203307-c2dcc5cca94a
 	github.com/spf13/cobra v0.0.6
 	github.com/stretchr/testify v1.4.0
+	github.com/stripe/safesql v0.2.0 // indirect
+	github.com/walle/lll v1.0.1 // indirect
 	go.mozilla.org/sops v0.0.0-20190912205235-14a22d7a7060 // indirect
 	go.mozilla.org/sops/v3 v3.6.0
 	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073
