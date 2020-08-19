@@ -18,7 +18,7 @@ import (
 )
 
 type checkExpiry struct {
-	TlsSecret []secretInfo  `json:"TlsSecret,omitempty" yaml:"TlsSecret,omitempty"`
+	TLSSecret []secretInfo  `json:"TlsSecret,omitempty" yaml:"TlsSecret,omitempty"`
 	Kubeconf  []kSecretInfo `json:"Kubeconf,omitempty" yaml:"Kubeconf,omitempty"`
 	NodeCert  []nCertInfo   `json:"NodeCert,omitempty" yaml:"NodeCert,omitempty"`
 }
@@ -96,7 +96,7 @@ func CheckexpiryData(rootSettings *environment.AirshipCTLSettings, factory clien
 	//      }
 
 	checkexpiry := checkExpiry{
-		TlsSecret: tlsData,
+		TLSSecret: tlsData,
 		Kubeconf:  kSecretData,
 		NodeCert:  nodeData,
 	}

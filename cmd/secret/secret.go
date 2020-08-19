@@ -18,7 +18,7 @@ import (
 	"github.com/spf13/cobra"
 	"opendev.org/airship/airshipctl/cmd/secret/checkexpiration"
 	"opendev.org/airship/airshipctl/cmd/secret/generate"
-	"opendev.org/airship/airshipctl/cmd/secret/resetSaToken"
+	"opendev.org/airship/airshipctl/cmd/secret/resetsatoken"
 	"opendev.org/airship/airshipctl/pkg/environment"
 	"opendev.org/airship/airshipctl/pkg/k8s/client"
 )
