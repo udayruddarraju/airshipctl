@@ -12,7 +12,7 @@
  limitations under the License.
 */
 
-package resetSaToken
+package resetsatoken
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ import (
 
 	"opendev.org/airship/airshipctl/pkg/environment"
 	"opendev.org/airship/airshipctl/pkg/k8s/client"
-	resetSaToken "opendev.org/airship/airshipctl/pkg/secret/resetSaToken"
+	resetsatoken "opendev.org/airship/airshipctl/pkg/secret/resetsatoken"
 )
 
 var secretType = "kubernetes.io/service-account-token"
@@ -34,7 +34,7 @@ func NewResetCommand(rootSettings *environment.AirshipCTLSettings, factory clien
 		Use:   "rotate-sa-token",
 		Short: "Rotate tokens of Service Accounts",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := resetSaToken.RotateToken(rootSettings, factory, namespace, secretName)
+			err := resetsatoken.RotateToken(rootSettings, factory, namespace, secretName)
 			if err != nil {
 				return fmt.Errorf("failed to rotate token: %s", err.Error())
 			}

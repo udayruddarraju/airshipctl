@@ -1,4 +1,4 @@
-package resetSaToken
+package resetsatoken
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 
 var secretType = "kubernetes.io/service-account-token"
 
-// rotateToken - rotates the token 1. Deletes the secret and 2. Deletes its pod
+// RotateToken - rotates the token 1. Deletes the secret and 2. Deletes its pod
 func RotateToken(rootSettings *environment.AirshipCTLSettings, factory client.Factory, ns string, secretName string) error {
 	kclient, err := factory(rootSettings)
 	if err != nil {

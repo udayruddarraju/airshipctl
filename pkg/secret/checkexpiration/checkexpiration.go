@@ -111,11 +111,11 @@ func CheckexpiryData(rootSettings *environment.AirshipCTLSettings, factory clien
 			fmt.Fprint(os.Stdout, dataYaml)
 		}
 	} else if contentType == "json" {
-		dataJson := parseJson(checkexpiry)
+		dataJSON := parseJSON(checkexpiry)
 
-		if dataJson != "" && strings.TrimSpace(dataJson) != "{}" {
+		if dataJSON != "" && strings.TrimSpace(dataJSON) != "{}" {
 			//	fmt.Println(dataJson)
-			fmt.Fprint(os.Stdout, dataJson)
+			fmt.Fprint(os.Stdout, dataJSON)
 		}
 	}
 
@@ -176,7 +176,7 @@ func parseYaml(checkexpiry checkExpiry) string {
 
 }
 
-func parseJson(checkexpiry checkExpiry) string {
+func parseJSON(checkexpiry checkExpiry) string {
 
 	//	buffer, err := json.Marshal(checkexpiry)
 	buffer, err := json.MarshalIndent(checkexpiry, "", "    ")
