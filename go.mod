@@ -4,7 +4,9 @@ go 1.13
 
 require (
 	4d63.com/gochecknoglobals v0.0.0-20190306162314-7c3491d2b6ec // indirect
+	4d63.com/gochecknoinits v0.0.0-20200108094044-eb73b47b9fc4 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible
+	github.com/alecthomas/gocyclo v0.0.0-20150208221726-aa8f8b160214 // indirect
 	github.com/alexkohler/nakedret v1.0.0 // indirect
 	github.com/alokmenghrajani/gpgeez v0.0.0-20161206084504-1a06f1c582f9
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect

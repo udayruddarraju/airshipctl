@@ -22,7 +22,7 @@ import (
 
 	"opendev.org/airship/airshipctl/pkg/environment"
 	"opendev.org/airship/airshipctl/pkg/k8s/client"
-	//"opendev.org/airship/airshipctl/pkg/secret/checkexpiration"
+	"opendev.org/airship/airshipctl/pkg/secret/checkexpiration"
 )
 
 // NewCheckCommand creates a new command for generating secret information
@@ -41,7 +41,8 @@ func NewCheckCommand(rootSettings *environment.AirshipCTLSettings, factory clien
 
 			//			fmt.Println("Running Check-expiration of all TLS secrets")
 
-			err := checkexpiration.checkexpiry(rootSettings, factory, duration, contentType)
+			err := checkexpiration.CheckexpiryData(rootSettings, factory, duration, contentType)
+
 			if err != nil {
 				return fmt.Errorf("failed to check expiry: %s", err.Error())
 			}

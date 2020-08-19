@@ -59,7 +59,8 @@ type nCertInfo struct {
 	Data          []certificateInfo `json:"Data,omitempty" yaml:"Data,omitempty"`
 }
 
-func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Factory, duration string, contentType string) error {
+//CheckexpiryData checks the expiry data of 1. TLS Secrets 2. Workload Cluster kubeconfig secret 3. Workload node Certificates
+func CheckexpiryData(rootSettings *environment.AirshipCTLSettings, factory client.Factory, duration string, contentType string) error {
 
 	d, err := strconv.Atoi(duration)
 
@@ -105,8 +106,6 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 
 		dataYaml := parseYaml(checkexpiry)
 
-		fmt.Println(strings.TrimSpace(dataYaml), "xyz")
-
 		if dataYaml != "" && strings.TrimSpace(dataYaml) != "{}" {
 			//	fmt.Println(dataYaml)
 			fmt.Fprint(os.Stdout, dataYaml)
@@ -114,7 +113,7 @@ func checkexpiry(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 	} else if contentType == "json" {
 		dataJson := parseJson(checkexpiry)
 
-		if dataJson != "" && dataJson != "{}" {
+		if dataJson != "" && strings.TrimSpace(dataJson) != "{}" {
 			//	fmt.Println(dataJson)
 			fmt.Fprint(os.Stdout, dataJson)
 		}
