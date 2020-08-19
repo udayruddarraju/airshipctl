@@ -21,6 +21,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	airapiv1 "opendev.org/airship/airshipctl/pkg/api/v1alpha1"
 	"opendev.org/airship/airshipctl/pkg/document"
 	"opendev.org/airship/airshipctl/testutil"
 )
@@ -102,6 +105,33 @@ func TestDocument(t *testing.T) {
 		assert.Equal(expectedObj, actualObj)
 	})
 
+	t.Run("ToAPIObject", func(t *testing.T) {
+		expectedObj := &airapiv1.Clusterctl{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Clusterctl",
+				APIVersion: "airshipit.org/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "clusterctl-v1",
+			},
+			Providers: []*airapiv1.Provider{
+				{
+					Name: "aws",
+					Type: "InfrastructureProvider",
+					URL:  "/manifests/capi/infra/aws/v0.3.0",
+				},
+			},
+		}
+		sel, err := document.NewSelector().ByObject(expectedObj, airapiv1.Scheme)
+		require.NoError(err)
+		doc, err := bundle.SelectOne(sel)
+		require.NoError(err)
+		actualObj := &airapiv1.Clusterctl{}
+		err = doc.ToAPIObject(actualObj, airapiv1.Scheme)
+		assert.NoError(err)
+		assert.Equal(expectedObj, actualObj)
+	})
+
 	t.Run("GetString", func(t *testing.T) {
 		doc, err := bundle.GetByName("some-random-deployment-we-will-filter")
 		require.NoError(err, "Unexpected error trying to GetByName")
@@ -156,6 +186,63 @@ func TestDocument(t *testing.T) {
 			labelList := doc.GetLabels()
 			assert.Equal(labelList["test-label"], "test-label-value")
 		}
+	})
+
+	t.Run("GetGroup", func(t *testing.T) {
+		doc, err := bundle.GetByName("some-random-deployment-we-will-filter")
+		require.NoError(err, "Unexpected error trying to GetByName")
+		group := doc.GetGroup()
+		require.NotNil(group)
+		assert.Equal(group, "apps")
+	})
+
+	t.Run("GetVersion", func(t *testing.T) {
+		doc, err := bundle.GetByName("some-random-deployment-we-will-filter")
+		require.NoError(err, "Unexpected error trying to GetByName")
+		version := doc.GetVersion()
+		require.NotNil(version)
+		assert.Equal(version, "v1")
+	})
+
+	t.Run("GetBool", func(t *testing.T) {
+		doc, err := bundle.GetByName("some-random-deployment-we-will-filter")
+		require.NoError(err, "Unexpected error trying to GetByName")
+		boolValue, err := doc.GetBool("spec.template.spec.containers[0].env[0].value")
+		require.NoError(err, "Unexpected error trying to GetBool from document")
+		assert.Equal(boolValue, false)
+	})
+
+	t.Run("GetFloat64", func(t *testing.T) {
+		doc, err := bundle.GetByName("some-random-deployment-we-will-filter")
+		require.NoError(err, "Unexpected error trying to GetByName")
+		floatValue, err := doc.GetFloat64("spec.template.spec.containers[0].env[1].value")
+		require.NoError(err, "Unexpected error trying to GetFloat from document")
+		assert.Equal(floatValue, float64(1.012))
+	})
+
+	t.Run("GetInt64", func(t *testing.T) {
+		doc, err := bundle.GetByName("some-random-deployment-we-will-filter")
+		require.NoError(err, "Unexpected error trying to GetByName")
+		intValue, err := doc.GetInt64("spec.template.spec.containers[0].env[2].value")
+		require.NoError(err, "Unexpected error trying to GetInt from document")
+		assert.Equal(intValue, int64(1000))
+	})
+
+	t.Run("GetSlice", func(t *testing.T) {
+		doc, err := bundle.GetByName("some-random-deployment-we-will-filter")
+		require.NoError(err, "Unexpected error trying to GetByName")
+		s := []interface{}{"foobar"}
+		gotSlice, err := doc.GetSlice("spec.template.spec.containers[0].args")
+		require.NoError(err, "Unexpected error trying to GetSlice")
+		assert.Equal(s, gotSlice)
+	})
+
+	t.Run("GetMap", func(t *testing.T) {
+		doc, err := bundle.GetByName("some-random-deployment-we-will-filter")
+		require.NoError(err, "Unexpected error trying to GetByName")
+		gotMap, err := doc.GetMap("spec.template.spec.containers[0].env[0]")
+		require.NoError(err, "Unexpected error trying to GetMap")
+		assert.NotNil(gotMap)
 	})
 }
 

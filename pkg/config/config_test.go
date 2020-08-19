@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -278,6 +279,27 @@ func TestCurrentContextBootstrapInfo(t *testing.T) {
 	assert.Equal(t, conf.BootstrapInfo[defaultString], bootstrapInfo)
 }
 
+func TestCurrentContextManagementConfig(t *testing.T) {
+	conf, cleanup := testutil.InitConfig(t)
+	defer cleanup(t)
+
+	clusterName := "def"
+	clusterType := "ephemeral"
+
+	managementConfig, err := conf.CurrentContextManagementConfig()
+	require.Error(t, err)
+	assert.Nil(t, managementConfig)
+
+	conf.CurrentContext = currentContextName
+	conf.Clusters[clusterName].ClusterTypes[clusterType].ManagementConfiguration = defaultString
+	conf.Contexts[currentContextName].Manifest = defaultString
+	conf.Contexts[currentContextName].KubeContext().Cluster = clusterName
+
+	managementConfig, err = conf.CurrentContextManagementConfig()
+	require.NoError(t, err)
+	assert.Equal(t, conf.ManagementConfiguration[defaultString], managementConfig)
+}
+
 func TestPurge(t *testing.T) {
 	conf, cleanup := testutil.InitConfig(t)
 	defer cleanup(t)
@@ -511,7 +533,7 @@ func TestCurrentContextEntryPoint(t *testing.T) {
 	conf.Contexts[currentContextName].KubeContext().Cluster = clusterName
 
 	entryPoint, err = conf.CurrentContextEntryPoint(defaultString)
-	require.NoError(t, err)
+	assert.Equal(t, config.ErrMissingPhaseDocument{PhaseName: defaultString}, err)
 	assert.Nil(t, nil, entryPoint)
 }
 
@@ -549,6 +571,87 @@ func TestCurrentContextClusterName(t *testing.T) {
 	actualClusterName, err := conf.CurrentContextClusterName()
 	require.NoError(t, err)
 	assert.Equal(t, expectedClusterName, actualClusterName)
+}
+
+func TestCurrentContextManifestMetadata(t *testing.T) {
+	expectedMeta := &config.Metadata{
+		Inventory: &config.InventoryMeta{
+			Path: "manifests/site/inventory",
+		},
+		PhaseMeta: &config.PhaseMeta{
+			Path: "manifests/site/phases",
+		},
+	}
+	conf, cleanup := testutil.InitConfig(t)
+	defer cleanup(t)
+	tests := []struct {
+		name           string
+		metaPath       string
+		currentContext string
+		expectErr      bool
+		errorChecker   func(error) bool
+		meta           *config.Metadata
+	}{
+		{
+			name:           "default metadata",
+			metaPath:       "testdata/metadata.yaml",
+			expectErr:      false,
+			currentContext: "testContext",
+			meta: &config.Metadata{
+				Inventory: &config.InventoryMeta{
+					Path: "manifests/site/inventory",
+				},
+				PhaseMeta: &config.PhaseMeta{
+					Path: "manifests/site/phases",
+				},
+			},
+		},
+		{
+			name:           "no such file or directory",
+			metaPath:       "does not exist",
+			currentContext: "testContext",
+			expectErr:      true,
+			errorChecker:   os.IsNotExist,
+		},
+		{
+			name:           "missing context",
+			currentContext: "doesn't exist",
+			expectErr:      true,
+			errorChecker: func(err error) bool {
+				return strings.Contains(err.Error(), "Missing configuration")
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			context := &config.Context{
+				Manifest: "testManifest",
+			}
+			manifest := &config.Manifest{
+				MetadataPath: tt.metaPath,
+				TargetPath:   ".",
+			}
+			conf.Manifests = map[string]*config.Manifest{
+				"testManifest": manifest,
+			}
+			conf.Contexts = map[string]*config.Context{
+				"testContext": context,
+			}
+			conf.CurrentContext = tt.currentContext
+			meta, err := conf.CurrentContextManifestMetadata()
+			if tt.expectErr {
+				t.Logf("error is %v", err)
+				require.Error(t, err)
+				require.NotNil(t, tt.errorChecker)
+				assert.True(t, tt.errorChecker(err))
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, meta)
+				assert.Equal(t, expectedMeta, meta)
+			}
+		})
+	}
 }
 
 func TestNewClusterComplexNameFromKubeClusterName(t *testing.T) {
@@ -747,4 +850,38 @@ func TestManagementConfigurationByNameDoesNotExist(t *testing.T) {
 
 	_, err := conf.GetManagementConfiguration(fmt.Sprintf("%s-test", config.AirshipDefaultContext))
 	assert.Error(t, err)
+}
+
+func TestGetManifests(t *testing.T) {
+	conf, cleanup := testutil.InitConfig(t)
+	defer cleanup(t)
+
+	manifests := conf.GetManifests()
+	require.NotNil(t, manifests)
+
+	assert.EqualValues(t, manifests[0].PrimaryRepositoryName, "primary")
+}
+
+func TestModifyManifests(t *testing.T) {
+	conf, cleanup := testutil.InitConfig(t)
+	defer cleanup(t)
+
+	mo := testutil.DummyManifestOptions()
+	manifest := conf.AddManifest(mo)
+	require.NotNil(t, manifest)
+
+	mo.TargetPath += stringDelta
+	err := conf.ModifyManifest(manifest, mo)
+	require.NoError(t, err)
+
+	mo.CommitHash = "11ded0"
+	mo.Tag = "v1.0"
+	err = conf.ModifyManifest(manifest, mo)
+	require.Error(t, err, "Checkout mutually exclusive, use either: commit-hash, branch or tag")
+
+	// error scenario
+	mo.RepoName = "invalid"
+	mo.URL = ""
+	err = conf.ModifyManifest(manifest, mo)
+	require.Error(t, err)
 }

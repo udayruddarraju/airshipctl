@@ -190,7 +190,7 @@ func InitConfig(t *testing.T) (conf *config.Config, cleanup func(*testing.T)) {
 
 	conf = config.NewConfig()
 
-	err = conf.LoadConfig(configPath, kubeConfigPath)
+	err = conf.LoadConfig(configPath, kubeConfigPath, false)
 	require.NoError(t, err)
 
 	return conf, cleanup
@@ -261,6 +261,21 @@ func DummyManagementConfiguration() *config.ManagementConfiguration {
 		Type:     redfish.ClientType,
 		Insecure: true,
 		UseProxy: false,
+	}
+}
+
+// DummyManifestOptions creates ManifestOptions config object
+// for unit testing
+func DummyManifestOptions() *config.ManifestOptions {
+	return &config.ManifestOptions{
+		Name:       "dummy_manifest",
+		SubPath:    "manifests/dummy_site",
+		TargetPath: "/tmp/dummy_site",
+		IsPrimary:  true,
+		RepoName:   "dummy_repo",
+		URL:        "https://github.com/treasuremap/dummy_site",
+		Branch:     "master",
+		Force:      true,
 	}
 }
 

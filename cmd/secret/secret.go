@@ -16,19 +16,30 @@ package secret
 
 import (
 	"github.com/spf13/cobra"
-
+	"opendev.org/airship/airshipctl/cmd/secret/checkexpiration"
+	"opendev.org/airship/airshipctl/cmd/secret/decrypt"
+	"opendev.org/airship/airshipctl/cmd/secret/encrypt"
 	"opendev.org/airship/airshipctl/cmd/secret/generate"
+	"opendev.org/airship/airshipctl/cmd/secret/resetSaToken"
+	"opendev.org/airship/airshipctl/pkg/environment"
+	"opendev.org/airship/airshipctl/pkg/k8s/client"
 )
 
 // NewSecretCommand creates a new command for managing airshipctl secrets
-func NewSecretCommand() *cobra.Command {
+func NewSecretCommand(rootSettings *environment.AirshipCTLSettings) *cobra.Command {
 	secretRootCmd := &cobra.Command{
 		Use: "secret",
 		// TODO(howell): Make this more expressive
 		Short: "Manage secrets",
 	}
 
+	rootSettings.InitConfig()
+
 	secretRootCmd.AddCommand(generate.NewGenerateCommand())
+	secretRootCmd.AddCommand(encrypt.NewEncryptCommand(rootSettings, client.DefaultClient))
+	secretRootCmd.AddCommand(decrypt.NewDecryptCommand(rootSettings, client.DefaultClient))
+	secretRootCmd.AddCommand(checkexpiration.NewCheckCommand(rootSettings, client.DefaultClient))
+	secretRootCmd.AddCommand(resetSaToken.NewResetCommand(rootSettings, client.DefaultClient))
 
 	return secretRootCmd
 }
