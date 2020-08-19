@@ -27,7 +27,7 @@ import (
 
 var secretType = "kubernetes.io/service-account-token"
 
-// NewEncryptCommand creates a new command for generating secret information
+// NewResetCommand creates a new command for generating secret information
 func NewResetCommand(rootSettings *environment.AirshipCTLSettings, factory client.Factory) *cobra.Command {
 	var namespace, secretName string
 	resetCmd := &cobra.Command{
@@ -54,6 +54,7 @@ func NewResetCommand(rootSettings *environment.AirshipCTLSettings, factory clien
 	return resetCmd
 }
 
+// rotateToken - rotates the token 1. Deletes the secret and 2. Deletes its pod
 func rotateToken(rootSettings *environment.AirshipCTLSettings, factory client.Factory, ns string, secretName string) error {
 	kclient, err := factory(rootSettings)
 	if err != nil {
@@ -106,6 +107,7 @@ func rotateToken(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 	return nil
 }
 
+// deleteSecret- deletes the secret
 func deleteSecret(kclient client.Interface, secretName string, ns string) error {
 	deleteOptions := &metav1.DeleteOptions{}
 	var zero int64 = 0
@@ -118,6 +120,7 @@ func deleteSecret(kclient client.Interface, secretName string, ns string) error 
 	return nil
 }
 
+// deletePod - identifies the secret relationship with pods and deletes corresponding pods
 func deletePod(kclient client.Interface, secretName string, ns string) error {
 	pods, err := kclient.ClientSet().CoreV1().Pods(ns).List(metav1.ListOptions{})
 	deleteOptions := &metav1.DeleteOptions{}

@@ -43,4 +43,3 @@ func NewSecretCommand(rootSettings *environment.AirshipCTLSettings) *cobra.Comma
 
 	return secretRootCmd
 }
-
