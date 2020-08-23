@@ -24,6 +24,7 @@ require (
 	github.com/jgautheron/goconst v0.0.0-20200227150835-cda7ea3bf591 // indirect
 	github.com/mdempsky/maligned v0.0.0-20180708014732-6e39bd26a8c8 // indirect
 	github.com/metal3-io/baremetal-operator v0.0.0-20200501205115-2c0dc9997bfa
+	github.com/mibk/dupl v1.0.0 // indirect
 	github.com/monopole/sopsencodedsecrets v0.0.0-20190703185602-44c03958d11f // indirect
 	github.com/onsi/gomega v1.9.0
 	github.com/opennota/check v0.0.0-20180911053232-0c771f5545ff // indirect

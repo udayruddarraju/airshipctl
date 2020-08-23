@@ -27,15 +27,17 @@ func RotateToken(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 		}
 
 		for _, secret := range secrets.Items {
-			fmt.Fprint(os.Stdout, "Rotating token - "+secret.Name+"\n")
-			err = deleteSecret(kclient, secret.Name, ns)
-			if err != nil {
-				return err
-			}
+			if string(secret.Type) == secretType {
+				fmt.Fprint(os.Stdout, "Rotating token - "+secret.Name+"\n")
+				err = DeleteSecret(kclient, secret.Name, ns)
+				if err != nil {
+					return err
+				}
 
-			err = deletePod(kclient, secret.Name, ns)
-			if err != nil {
-				return err
+				err = DeletePod(kclient, secret.Name, ns)
+				if err != nil {
+					return err
+				}
 			}
 
 		}
@@ -48,12 +50,12 @@ func RotateToken(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 
 		if string(secret.Type) == secretType {
 			fmt.Fprint(os.Stdout, "Rotating token - "+secretName+"\n")
-			err := deleteSecret(kclient, secretName, ns)
+			err := DeleteSecret(kclient, secretName, ns)
 			if err != nil {
 				return err
 			}
 
-			err = deletePod(kclient, secretName, ns)
+			err = DeletePod(kclient, secretName, ns)
 			if err != nil {
 				return err
 			}
@@ -65,7 +67,7 @@ func RotateToken(rootSettings *environment.AirshipCTLSettings, factory client.Fa
 }
 
 // deleteSecret- deletes the secret
-func deleteSecret(kclient client.Interface, secretName string, ns string) error {
+func DeleteSecret(kclient client.Interface, secretName string, ns string) error {
 	deleteOptions := &metav1.DeleteOptions{}
 	var zero int64 = 0
 	deleteOptions.GracePeriodSeconds = &zero
@@ -78,7 +80,7 @@ func deleteSecret(kclient client.Interface, secretName string, ns string) error 
 }
 
 // deletePod - identifies the secret relationship with pods and deletes corresponding pods
-func deletePod(kclient client.Interface, secretName string, ns string) error {
+func DeletePod(kclient client.Interface, secretName string, ns string) error {
 	pods, err := kclient.ClientSet().CoreV1().Pods(ns).List(metav1.ListOptions{})
 	deleteOptions := &metav1.DeleteOptions{}
 	var zero int64 = 0
